@@ -40,7 +40,7 @@ from nnunet.utilities.nd_softmax import softmax_helper
 from nnunet.utilities.tensor_utilities import sum_tensor
 from torch import nn
 from torch.optim import lr_scheduler
-
+from nnunet.training.loss_functions.crossentropy import RobustCrossEntropyLoss
 # from nnunet.network_architecture.Attention_check_network import Att_DenseUNet_check_attention
 
 
@@ -109,6 +109,9 @@ class nnUNetTrainer(NetworkTrainer):
 
         self.batch_dice = batch_dice
         self.loss = DC_and_CE_loss({'batch_dice': self.batch_dice, 'smooth': 1e-5, 'do_bg': False}, {})
+
+        # add
+        # self.ce_loss = Original_CE({'batch_dice': self.batch_dice, 'smooth': 1e-5, 'do_bg': False}, {})
 
         self.online_eval_foreground_dc = []
         self.online_eval_tp = []
@@ -270,9 +273,9 @@ class nnUNetTrainer(NetworkTrainer):
             norm_op = nn.InstanceNorm2d
 
         norm_op_kwargs = {'eps': 1e-5, 'affine': True}
-        dropout_op_kwargs = {'p': 0, 'inplace': True}
+        dropout_op_kwargs = {'p': 0, 'inplace':True} # 'inplace': True}
         net_nonlin = nn.LeakyReLU
-        net_nonlin_kwargs = {'negative_slope': 1e-2, 'inplace': True}
+        net_nonlin_kwargs = {'negative_slope': 1e-2, 'inplace': True}# 'inplace': True}
         self.network = Generic_UNet(self.num_input_channels, self.base_num_features, self.num_classes, net_numpool,
                                     self.conv_per_stage, 2, conv_op, norm_op, norm_op_kwargs, dropout_op,
                                     dropout_op_kwargs,
@@ -808,6 +811,7 @@ class nnUNetTrainer(NetworkTrainer):
 
 
         self.all_val_eval_metrics.append(np.mean(global_dc_per_class))
+        # self.all_val_eval_metrics.append(global_dc_per_class[0])
 
         self.print_to_log_file("Average global foreground Dice (for Ureter):", str(global_dc_per_class))
         # self.print_to_log_file("(interpret this as an estimate for the Dice of the different classes. This is not "

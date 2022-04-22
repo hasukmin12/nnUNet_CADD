@@ -89,9 +89,10 @@ def main():
 
     args = parser.parse_args()
 
+    # os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
     # os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2,3'
-    # os.environ['CUDA_VISIBLE_DEVICES'] = '4,5,6,7'
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2,3,4,5,6,7'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '4,5,6,7'
+    # os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2,3,4,5,6,7'
     # os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
 

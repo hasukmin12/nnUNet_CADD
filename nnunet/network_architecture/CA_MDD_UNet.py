@@ -207,6 +207,7 @@ class DenseUNetDecoder(nn.Module):
             features_below = previous_stage_output_features[s+ 1]
             features_skip = previous_stage_output_features[s]
             self.CA.append(CoordAtt(features_below, features_below))
+            # self.CA.append(CoordAtt(features_skip, features_skip))
 
             self.tus.append(transpconv(features_below, features_skip, previous_stage_pool_kernel_size[s],
                                        previous_stage_pool_kernel_size[s], bias=False))
@@ -259,6 +260,10 @@ class DenseUNetDecoder(nn.Module):
             x = self.CA[i](x)
 
             x = self.stages[i](x)
+
+            # x = self.CA[i](x)
+
+
             if self.deep_supervision and (i != len(self.tus) - 1):
                 seg_outputs.append(self.deep_supervision_outputs[i](x))
 
@@ -426,7 +431,7 @@ class CA_MDD_UNet(SegmentationNetwork):
                                            props, default_return_skips=True, max_num_features=max_features,
                                            block=block)
 
-        props['dropout_op_kwargs'] = {'p': 0.5, 'inplace': True}
+        props['dropout_op_kwargs'] = {'p': 0.5, 'inplace': True} # {'p': 0.5, 'inplace': True}
         props['dropout_op'] = nn.Dropout3d
         # props['dropout_op_kwargs']['p'] = 0
 

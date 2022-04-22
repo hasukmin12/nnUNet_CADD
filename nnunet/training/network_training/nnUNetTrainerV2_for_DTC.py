@@ -39,7 +39,7 @@ from torch.cuda.amp import autocast
 from nnunet.training.learning_rate.poly_lr import poly_lr
 from batchgenerators.utilities.file_and_folder_operations import *
 from nnunet.utilities.for_DTC import compute_sdf, boundary_loss
-
+from nnunet.training.loss_functions.crossentropy import RobustCrossEntropyLoss
 
 class nnUNetTrainerV2_for_DTC(nnUNetTrainer):
     """
@@ -56,6 +56,8 @@ class nnUNetTrainerV2_for_DTC(nnUNetTrainer):
         self.ds_loss_weights = None
 
         self.pin_memory = True
+
+        self.ce_loss = RobustCrossEntropyLoss()
 
     def initialize(self, training=True, force_load_plans=False):
         """
@@ -92,6 +94,7 @@ class nnUNetTrainerV2_for_DTC(nnUNetTrainer):
             self.ds_loss_weights = weights
             # now wrap the loss
             self.loss = MultipleOutputLoss2(self.loss, self.ds_loss_weights)
+
             ################# END ###################
 
             self.folder_with_preprocessed_data = join(self.dataset_directory, self.plans['data_identifier'] +
@@ -259,7 +262,7 @@ class nnUNetTrainerV2_for_DTC(nnUNetTrainer):
                     # Dice_CE를 여기에도 적용
                     dis_to_mask = torch.sigmoid(1500 * output_tanh)
                     outputs_soft = torch.sigmoid(output[0])
-                    consistency_loss = self.loss([dis_to_mask], [outputs_soft]) - 1
+                    consistency_loss = self.ce_loss(dis_to_mask, outputs_soft) - 1
                     l = consistency_loss
 
                     # 라벨이 있는 경우
@@ -268,7 +271,7 @@ class nnUNetTrainerV2_for_DTC(nnUNetTrainer):
 
                     dis_to_mask = torch.sigmoid(1500 * output_tanh)
                     outputs_soft = torch.sigmoid(output[0])
-                    consistency_loss = self.loss([dis_to_mask], [outputs_soft]) -1
+                    consistency_loss = self.ce_loss(dis_to_mask, outputs_soft) -1
 
                     # 원래 사용하던 Dice_CE
                     DC_l = self.loss(output, target)
@@ -281,13 +284,9 @@ class nnUNetTrainerV2_for_DTC(nnUNetTrainer):
                     # l = (beta * total_consistency_loss) + (DC_l * (1-beta))
 
 
-
-
-
-
                     gt_dis = compute_sdf(target[0].cpu().numpy(), output[0].shape)
                     gt_dis = torch.from_numpy(gt_dis).float().cuda()
-                    gt_loss = self.loss([gt_dis], [output_tanh])
+                    gt_loss = self.ce_loss(gt_dis, output_tanh)
 
                     beta = 0.2
                     total_consistency_loss = (consistency_loss + gt_loss) / 2

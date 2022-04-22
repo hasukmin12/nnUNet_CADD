@@ -305,10 +305,113 @@ Task261 : Task221 -> flip x, y
 
 
 
-
 Task 265 : Task 263 + batch 8
     -t 265 -pl3d ExperimentPlanner_Double_Dense_3DUNet_v21
     3d_fullres HasTrainer_DP_CA_MDD Task265_Ureter 4 -gpu 8 -p nnUNetPlans_Double_DenseUNet_v2.1_2
 
 
-Task 266 : Task 263 + batch 16
+Task 266 : Task 263 + concat 이후 TransConv 이후 Attention 실험
+    -t 266 -pl3d ExperimentPlanner_Double_Dense_3DUNet_v21
+    3d_fullres HasTrainer_DP_CA_MDD Task266_Ureter 4 -gpu 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+    -i /data5/sukmin/CT_2_inference6_test_69_rt -o /data5/sukmin/CT_2_inference_rst_266 -t Task266_Ureter -tr HasTrainer_DP_CA_MDD -m 3d_fullres -chk model_best -f 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+
+
+Task 267 : Task 263 + (C/r * (H+W+D) * 1 * 1)   ->   (C/r * 1 * 1 * (H+W+D))
+
+----------------------------------------------------------------------------------------------------------
+
+* Task 269 : Task 263 + DTC with only cross entropy loss
+    3d_fullres HasTrainer_DP_SDDense Task269_Ureter 4 -gpu 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+
+
+Task 270 : Task263 + loss CE only
+    -t 270 -pl3d ExperimentPlanner_Double_Dense_3DUNet_v21
+
+Task 271 : Task 263 + loss CE only
+
+----------------------------------------------------------------------------------------------------------
+
+Task 272 : Task263 + Bladder, Kideny with loss modify - 요관 부정확한건 빼고 함
+
+** Task 273 : Bladder, Kideny with loss modify - 요관 부정확해도 포함해서 함
+    -t 273 -pl3d ExperimentPlanner_Double_Dense_3DUNet_v21
+    3d_fullres HasTrainer_DP_CADD_3kid Task273_Urinary 4 -gpu 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+    -i /data4/sukmin/CT_2_inference6_test_69_rt -o /data4/sukmin/CT_2_inference_rst_273 -t Task273_Urinary -tr HasTrainer_DP_CADD_3kid -m 3d_fullres -chk model_best -f 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+
+
+
+
+
+
+----------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------
+
+우리의 최종 모델 (Task 274 - CADD-UNet)
+***** Task 274 : Task 273 + Bladder, Kidney loss portion
+    3d_fullres HasTrainer_DP_DD_CADD_3kid Task274_Urinary 4 -gpu 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+    -i /data4/sukmin/CT_2_inference6_test_69_rt -o /data4/sukmin/CT_2_inference_rst_274 -t Task274_Urinary -tr HasTrainer_DP_CADD_3kid -m 3d_fullres -chk model_best -f 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+
+----------------------------------------------------------------------------------------------------------
+
+여기서부턴 그냥 postprocessing 하지 말자 -> 어차피 성능차이 크게 안남
+
+* Task 278 : Task274 + DDenseUNet
+    -t 278 -pl3d ExperimentPlanner_Double_Dense_3DUNet_v21
+    3d_fullres HasTrainer_DP_DDense_3kid Task278_Urinary 4 -gpu 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+     -i /data5/sukmin/CT_2_inference6_test_69_rt -o /data5/sukmin/CT_2_inference_rst_278_DDense -t Task278_Urinary -tr HasTrainer_DP_DDense_3kid -m 3d_fullres -chk model_best -f 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+
+* - CADD
+3d_fullres HasTrainer_DP_CADD_3kid Task275_Urinary 4 -gpu 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+-i /data5/sukmin/CT_2_inference6_test_69_rt -o /data5/sukmin/CT_2_inference_rst_275_CADD -t Task275_Urinary -tr HasTrainer_DP_CADD_3kid -m 3d_fullres -chk model_best -f 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+
+ - Dense
+3d_fullres HasTrainer_DP_Dense_3kid Task278_Urinary 4 -gpu 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+-i /data5/sukmin/CT_2_inference6_test_69_rt -o /data5/sukmin/CT_2_inference_rst_278_Dense -t Task278_Urinary -tr HasTrainer_DP_Dense_3kid -m 3d_fullres -chk model_best -f 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+
+- ResUNet
+3d_fullres HasTrainer_DP_Res_3kid Task275_Urinary 4 -gpu 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2    # origin
+-i /data5/sukmin/CT_2_inference6_test_69_rt -o /data5/sukmin/CT_2_inference_rst_275_Res -t Task275_Urinary -tr HasTrainer_DP_Res_3kid -m 3d_fullres -chk model_best -f 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+
+3d_fullres HasTrainer_DP_Res_3kid_2 Task278_Urinary 4 -gpu 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2  # modify MA
+
+
+* - 일반 3D UNet
+3d_fullres nnUNetTrainerV2_3kid_DP Task275_Urinary 4 -gpu 4
+-i /data5/sukmin/CT_2_inference6_test_69_rt -o /data5/sukmin/CT_2_inference_rst_275_UNet_2 -t Task275_Urinary -tr nnUNetTrainerV2_3kid_DP -m 3d_fullres -chk model_best -f 4 --disable_tta
+
+----------------------------------------------------------------------------------------------------------
+
+* Task 295 : Task 295(요관만) + DDenseUNet
+    -t 295 -pl3d ExperimentPlanner_Double_Dense_3DUNet_v21
+    3d_fullres HasTrainer_DP_D_dense Task295_Urinary 4 -gpu 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+    -i /data5/sukmin/CT_2_inference6_test_69_rt -o /data5/sukmin/CT_2_inference_rst_295_DDense_2 -t Task295_Urinary -tr HasTrainer_DP_D_dense -m 3d_fullres -chk model_best -f 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+
+* - CADD
+3d_fullres HasTrainer_DP_CADD Task295_Urinary 4 -gpu 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+-i /data5/sukmin/CT_2_inference6_test_69_rt -o /data5/sukmin/CT_2_inference_rst_295_CADD -t Task295_Urinary -tr HasTrainer_DP_CADD -m 3d_fullres -chk model_best -f 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+
+* - Dense
+3d_fullres HasTrainer_DP_Dense Task295_Urinary 4 -gpu 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+-i /data5/sukmin/CT_2_inference6_test_69_rt -o /data5/sukmin/CT_2_inference_rst_295_Dense -t Task295_Urinary -tr HasTrainer_DP_Dense -m 3d_fullres -chk model_best -f 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+
+- ResUNet
+3d_fullres HasTrainer_DP_Res Task295_Urinary 4 -gpu 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+-i /data5/sukmin/CT_2_inference6_test_69_rt -o /data5/sukmin/CT_2_inference_rst_295_Res -t Task295_Urinary -tr HasTrainer_DP_Res -m 3d_fullres -chk model_best -f 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+
+* - 일반 3D UNet
+3d_fullres nnUNetTrainerV2_DP Task295_Urinary 4 -gpu 4
+-i /data5/sukmin/CT_2_inference6_test_69_rt -o /data5/sukmin/CT_2_inference_rst_295_UNet -t Task295_Urinary -tr nnUNetTrainerV2_DP -m 3d_fullres -chk model_best -f 4  --disable_tta
+
+----------------------------------------------------------------------------------------------------------
+
+
+
+
+** Task 280 : Task274 + Semi supervised like CVPR
+    3d_fullres HasTrainer_DP_SS_CADD_3kid Task280_Urinary 4 -gpu 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+
+
+
+
+

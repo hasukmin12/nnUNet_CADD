@@ -124,8 +124,8 @@ class ExperimentPlanner_Double_Dense_3DUNet_v21(ExperimentPlanner3D_v21):
         blocks_per_stage_decoder =  (1, 1, 1, 1)
 
         # batch_size = 1
-        # batch_size = 4
-        batch_size = 8
+        batch_size = 4
+        # batch_size = 8
         # batch_size = 16
 
         plan = {

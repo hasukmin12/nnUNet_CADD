@@ -25,7 +25,7 @@ if __name__ == "__main__":
 
     base = "/data5/sukmin/_has_Task220_Ureter_5mm"
 
-    task_id = 265
+    task_id = 271
     task_name = "Ureter"
     foldername = "Task%03.0d_%s" % (task_id, task_name)
 

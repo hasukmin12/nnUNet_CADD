@@ -114,7 +114,7 @@ class CA_MDD_UNet_DP(CA_MDD_UNet):
                     tps.append(tp)
                     fps.append(fp)
                     fns.append(fn)
-                ret = ce_losses, tps, fps, fns
+                ret = ce_losses , tps, fps, fns
 
             # 여긴 안쓰인다고 보면된다.
             else:

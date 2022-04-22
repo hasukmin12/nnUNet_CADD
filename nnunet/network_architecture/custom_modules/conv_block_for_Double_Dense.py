@@ -276,7 +276,7 @@ class DenseDownBlock_2(nn.Module):
 
 
         # dropout
-        props['dropout_op_kwargs'] = {'p': 0.5, 'inplace': True}
+        props['dropout_op_kwargs'] = {'p': 0.5, 'inplace': True} # 'inplace': True}
         props['dropout_op'] = nn.Dropout3d
         if props['dropout_op_kwargs']['p'] != 0:
             self.dropout = props['dropout_op'](**props['dropout_op_kwargs'])
@@ -425,7 +425,7 @@ class DenseUpBlock(nn.Module):
         self.nonlin3 = props['nonlin'](**props['nonlin_kwargs'])
 
         # dropout
-        props['dropout_op_kwargs'] = {'p': 0.5, 'inplace': True}
+        props['dropout_op_kwargs'] = {'p': 0.5, 'inplace': True} # 'inplace': True}
         props['dropout_op'] = nn.Dropout3d
         if props['dropout_op_kwargs']['p'] != 0:
             self.dropout = props['dropout_op'](**props['dropout_op_kwargs'])
@@ -593,16 +593,17 @@ class PlainUpLayer(nn.Module):
 # Coordinate Attention
 
 class h_sigmoid(nn.Module):
-    def __init__(self, inplace=True):
+    def __init__(self, inplace=True): # True):
         super(h_sigmoid, self).__init__()
-        self.relu = nn.ReLU6(inplace=inplace)
+        # self.relu = nn.ReLU6(inplace=inplace)
+        self.relu = nn.ReLU6(inplace=False)
 
     def forward(self, x):
         return self.relu(x + 3) / 6
 
 
 class h_swish(nn.Module):
-    def __init__(self, inplace=True):
+    def __init__(self, inplace=True):  # True):
         super(h_swish, self).__init__()
         self.sigmoid = h_sigmoid(inplace=inplace)
 
@@ -638,12 +639,12 @@ class CoordAtt(nn.Module):
         x_w = self.pool_w(x).permute(0, 1, 3, 2, 4) # (1,512,22,1,1)
         x_d = self.pool_d(x).permute(0, 1, 4, 3, 2) # (1,512,4,1,1)
 
-        # print(x_h.shape)
-        # print(x_w.shape)
-        # print(x_d.shape)
+        # x_h = self.pool_h(x).permute(0, 1, 3, 4, 2)  # (1,512,24,1,1)
+        # x_w = self.pool_w(x).permute(0, 1, 2, 4, 3)  # (1,512,22,1,1)
+        # x_d = self.pool_d(x)  # (1,512,4,1,1)
+
 
         y = torch.cat([x_h, x_w, x_d], dim=2)   # (1,512,50,1,1)
-        # print(y.shape)
         y = self.conv1(y)
         y = self.bn1(y)
         y = self.act(y) # (1,16,50,1,1)
@@ -651,6 +652,8 @@ class CoordAtt(nn.Module):
         x_h, x_w, x_d = torch.split(y, [h, w, d], dim=2)
         x_w = x_w.permute(0, 1, 3, 2, 4)
         x_d = x_d.permute(0, 1, 4, 3, 2)
+        # x_h = x_h.permute(0, 1, 4, 2, 3)
+        # x_w = x_w.permute(0, 1, 2, 4, 3)
 
 
         a_d = self.conv_d(x_d).sigmoid()
@@ -659,31 +662,99 @@ class CoordAtt(nn.Module):
 
         out = identity * a_d * a_w * a_h
 
-        # 값이 줄어드는걸 보정하기 위해 3을 곱해준다
-        # rst = out * 4
-        # print(identity.max())
-        # print(out.max())
-        # print(rst.max())
-        # print()
+        return out
 
-        return out # rst
 
-    # tensor(15.6641, device='cuda:0', dtype=torch.float16, grad_fn= < MaxBackward1 >)
-    # tensor(4.8398, device='cuda:0', dtype=torch.float16, grad_fn= < MaxBackward1 >)
-    # tensor(14.5156, device='cuda:0', dtype=torch.float16, grad_fn= < MaxBackward1 >)
 
-    # tensor(19.5781, device='cuda:0', dtype=torch.float16, grad_fn= < MaxBackward1 >)
-    # tensor(4.7500, device='cuda:0', dtype=torch.float16, grad_fn= < MaxBackward1 >)
-    # tensor(14.2500, device='cuda:0', dtype=torch.float16, grad_fn= < MaxBackward1 >)
 
-    # tensor(6.5195, device='cuda:0', dtype=torch.float16, grad_fn= < MaxBackward1 >)
-    # tensor(1.2051, device='cuda:0', dtype=torch.float16, grad_fn= < MaxBackward1 >)
-    # tensor(3.6152, device='cuda:0', dtype=torch.float16, grad_fn= < MaxBackward1 >)
 
-    # tensor(8.0078, device='cuda:0', dtype=torch.float16, grad_fn= < MaxBackward1 >)
-    # tensor(2.1250, device='cuda:0', dtype=torch.float16, grad_fn= < MaxBackward1 >)
-    # tensor(6.3750, device='cuda:0', dtype=torch.float16, grad_fn= < MaxBackward1 >)
 
-    # tensor(10.0859, device='cuda:0', dtype=torch.float16, grad_fn= < MaxBackward1 >)
-    # tensor(2.0781, device='cuda:0', dtype=torch.float16, grad_fn= < MaxBackward1 >)
-    # tensor(6.2344, device='cuda:0', dtype=torch.float16, grad_fn= < MaxBackward1 >)
+
+
+class Double_Dense_Block(nn.Module):
+    def __init__(self, inplanes, planes, kernel_size, props, bias=False):
+        super(Double_Dense_Block, self).__init__()
+        self.conv_list = nn.ModuleList()
+        self.planes = planes
+        self.conv_1 = nn.Conv3d(inplanes, planes, kernel_size=kernel_size, padding=0, bias=bias, dilation=1)
+        self.conv_2 = nn.Conv3d((inplanes + planes), planes, kernel_size=kernel_size, padding=2, bias=bias, dilation=2)
+        self.conv_3 = nn.Conv3d((inplanes + 2 * planes), planes, kernel_size=kernel_size, padding=3, bias=bias, dilation=3)
+
+        self.norm = props['norm_op'](planes, **props['norm_op_kwargs'])
+        self.nonlin = props['nonlin'](**props['nonlin_kwargs'])
+
+        self.conv_1_1 = nn.Conv3d((inplanes + 3 * planes), planes, kernel_size=[1 for _ in kernel_size],
+                                  padding=[0 for i in kernel_size])
+        self.norm_1_1 = props['norm_op'](planes, **props['norm_op_kwargs'])
+        self.nonlin_1_1 = props['nonlin'](**props['nonlin_kwargs'])
+
+    def forward(self, x):
+        out_1 = self.nonlin(self.norm(self.conv_1(x)))  # 32
+        # print(out_1.shape)
+        residual_1 = torch.cat((x, out_1), dim=1)  # 32 + 32
+
+        out_2 = self.nonlin(self.norm(self.conv_2(residual_1)))  # 32
+        residual_2 = torch.cat((out_2, residual_1), dim=1)  # 32 + 64
+
+        out_3 = self.nonlin(self.norm(self.conv_3(residual_2)))  # 32
+        out = torch.cat((residual_2, out_3), dim=1)  # 96 + 32
+
+        out = self.nonlin_1_1(self.norm_1_1(self.conv_1_1(out)))  # 32
+        return out
+
+
+
+class DD_CoordAtt(nn.Module):
+    def __init__(self, inp, oup, kernel_size, props, bias, reduction=32):
+        super(DD_CoordAtt, self).__init__()
+
+
+        self.pool_h = nn.AdaptiveAvgPool3d((None, None, 1))
+        self.pool_w = nn.AdaptiveAvgPool3d((None, 1, None))
+        self.pool_d = nn.AdaptiveAvgPool3d((1, None, None))
+
+        mip = max(8, inp // reduction)
+
+        self.conv1 = Double_Dense_Block(inp,mip, kernel_size, props, bias)
+        self.bn1 = nn.BatchNorm3d(mip)
+        self.act = h_swish()
+
+        self.conv_d = nn.Conv3d(mip, oup, kernel_size=1, stride=1, padding=0)
+        self.conv_h = nn.Conv3d(mip, oup, kernel_size=1, stride=1, padding=0)
+        self.conv_w = nn.Conv3d(mip, oup, kernel_size=1, stride=1, padding=0)
+
+
+    def forward(self, x):
+        identity = x   #(1,512,24,22,4)
+
+        b, c, h, w, d = x.size()
+        x_h = self.pool_h(x)  # (1,512,24,1,1)
+        x_w = self.pool_w(x).permute(0, 1, 2, 4, 3) # (1,512,22,1,1)
+        x_d = self.pool_d(x).permute(0, 1, 4, 3, 2) # (1,512,4,1,1)
+
+        # x_h = self.pool_h(x).permute(0, 1, 3, 4, 2)  # (1,512,24,1,1)
+        # x_w = self.pool_w(x).permute(0, 1, 2, 4, 3)  # (1,512,22,1,1)
+        # x_d = self.pool_d(x)  # (1,512,4,1,1)
+
+
+        y = torch.cat([x_h, x_w, x_d], dim=2)
+        # y2 = torch.cat([x_h, x_w, x_d], dim=3)
+
+        y = self.conv1(y)
+        y = self.bn1(y)
+        y = self.act(y) # (1,16,50,1,1)
+
+        x_h, x_w, x_d = torch.split(y, [h, w, d], dim=2)
+        x_w = x_w.permute(0, 1, 3, 2, 4)
+        x_d = x_d.permute(0, 1, 4, 3, 2)
+        # x_h = x_h.permute(0, 1, 4, 2, 3)
+        # x_w = x_w.permute(0, 1, 2, 4, 3)
+
+
+        a_d = self.conv_d(x_d).sigmoid()
+        a_h = self.conv_h(x_h).sigmoid()
+        a_w = self.conv_w(x_w).sigmoid()
+
+        out = identity * a_d * a_w * a_h
+
+        return out

@@ -550,11 +550,13 @@ class NetworkTrainer(object):
         (not a minimization, but a maximization of a metric and therefore the - in the latter case)
         :return:
         """
+        # self.val_eval_criterion_MA = 0.45
         if self.val_eval_criterion_MA is None:
             if len(self.all_val_eval_metrics) == 0:
                 self.val_eval_criterion_MA = - self.all_val_losses[-1]
             else:
                 self.val_eval_criterion_MA = self.all_val_eval_metrics[-1]
+                print("val_eval_criterion_MA : ", self.val_eval_criterion_MA)
         else:
             if len(self.all_val_eval_metrics) == 0:
                 """
@@ -568,6 +570,12 @@ class NetworkTrainer(object):
                 self.val_eval_criterion_MA = self.val_eval_criterion_alpha * self.val_eval_criterion_MA + (
                         1 - self.val_eval_criterion_alpha) * \
                                              self.all_val_eval_metrics[-1]
+                
+            # else:
+            #     self.val_eval_criterion_MA = self.all_val_eval_metrics[-1]
+            #     print("val_eval_criterion_MA : ", self.val_eval_criterion_MA)
+
+
 
     def manage_patience(self):
         # update patience
@@ -591,8 +599,10 @@ class NetworkTrainer(object):
             #self.print_to_log_file("current val_eval_criterion_MA is %.4f" % self.val_eval_criterion_MA)
 
             if self.val_eval_criterion_MA > self.best_val_eval_criterion_MA:
+                print("save best score : ", self.best_val_eval_criterion_MA, " -> ", self.val_eval_criterion_MA)
                 self.best_val_eval_criterion_MA = self.val_eval_criterion_MA
                 #self.print_to_log_file("saving best epoch checkpoint...")
+
                 if self.save_best_checkpoint: self.save_checkpoint(join(self.output_folder, "model_best.model"))
 
             # Now see if the moving average of the train loss has improved. If yes then reset patience, else

@@ -185,6 +185,40 @@ class SoftDiceLoss(nn.Module):
 
         dc = nominator / (denominator + 1e-8)
 
+        # 신장 방광 loss 조절 (0.1배로 줄임)
+        if len(dc) > 2:
+            # if y.max() != 0:
+            #     # portion 측정
+            #     u = int((y == 1).sum())
+            #     b = int((y == 2).sum())
+            #     k = int((y == 3).sum())
+            #     total = u + b + k
+            #     u_p = (total / u) / (total / u + total / b + total / k)
+            #     b_p = (total / b) / (total / u + total / b + total / k)
+            #     k_p = (total / k) / (total / u + total / b + total / k)
+            #
+            #
+            #     # loss 조정
+            #     # for i in range(2, len(dc)):
+            #     #     dc[i] = dc[i] * 0.1 # 0.1
+            #     dc[0] = dc[0] * u_p
+            #     dc[1] = dc[1] * b_p
+            #     dc[2] = dc[2] * k_p
+            # for i in range(2, len(dc)):
+            #     dc[i] = dc[i] * 0.1 # 0.1
+            dc[1] = dc[1] * 0.868725422948048
+            dc[2] = dc[2] * 0.09149639451739373
+            dc[3] = dc[3] * 0.039778182534558185
+
+            ndc = dc
+            # 만약 각 부위에 대한 라벨이 없다면, 해당 텐서 부분 제거
+            if 1 not in y:
+                dc = dc[dc != ndc[1]]
+            if 2 not in y:
+                dc = dc[dc != ndc[2]]
+            if 3 not in y:
+                dc = dc[dc != ndc[3]]
+
         if not self.do_bg:
             if self.batch_dice:
                 dc = dc[1:]
@@ -193,6 +227,11 @@ class SoftDiceLoss(nn.Module):
         dc = dc.mean()
 
         return -dc
+
+
+
+
+
 
 
 class MCCLoss(nn.Module):
@@ -350,13 +389,32 @@ class DC_and_CE_loss(nn.Module):
         if self.log_dice:
             dc_loss = -torch.log(-dc_loss)
 
+        # 나눠서 학습하자
+        # if net_output[0].shape[0] > 2:
+        #     if 1 not in target:
+        #         for i in range(0,3):
+        #             net_output[i][1] = 0
+        #     if 2 not in target:
+        #         # net_output = net_output.detach().cpu().numpy()
+        #         # net_output =  np.delete(net_output, 2, 1)
+        #         # net_output = torch.from_numpy(net_output).cuda()
+        #         for i in range(0,3):
+        #             net_output[i][2] = 0
+        #
+        #     if 3 not in target:
+        #         # net_output = net_output.detach().cpu().numpy()
+        #         # net_output = np.delete(net_output, 3, 1)
+        #         # net_output = torch.from_numpy(net_output).cuda()
+        #         for i in range(0,3):
+        #             net_output[i][3] = 0
+
         ce_loss = self.ce(net_output, target[:, 0].long()) if self.weight_ce != 0 else 0
         if self.ignore_label is not None:
             ce_loss *= mask[:, 0]
             ce_loss = ce_loss.sum() / mask.sum()
 
         if self.aggregate == "sum":
-            result = self.weight_ce * ce_loss + self.weight_dice * dc_loss
+            result = self.weight_dice * dc_loss + self.weight_ce * ce_loss
         else:
             raise NotImplementedError("nah son") # reserved for other stuff (later)
         return result
@@ -405,6 +463,18 @@ class GDL_and_CE_loss(nn.Module):
         else:
             raise NotImplementedError("nah son") # reserved for other stuff (later)
         return result
+
+
+# #added
+# class Original_CE(nn.Module):
+#     def __init__(self, gdl_dice_kwargs, ce_kwargs):
+#         super(Original_CE, self).__init__()
+#         self.ce = RobustCrossEntropyLoss(**ce_kwargs)
+#
+#     def forward(self, net_output, target):
+#         ce_loss = self.ce(net_output, target)
+#         result = ce_loss
+#         return result
 
 
 class DC_and_topk_loss(nn.Module):

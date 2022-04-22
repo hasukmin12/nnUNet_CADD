@@ -84,6 +84,76 @@ class StackedConvLayers(nn.Module):
 
 
 
+
+
+
+
+# 여기서부터 Residual Block
+
+class BasicUNetBlock(nn.Module):
+    def __init__(self, in_planes, out_planes, kernel_size, props, stride=None):
+        """
+        This is the conv bn nonlin conv bn nonlin kind of block
+        :param in_planes:
+        :param out_planes:
+        :param props:
+        :param override_stride:
+        """
+        super().__init__()
+
+        self.kernel_size = kernel_size
+        props['conv_op_kwargs']['stride'] = 1
+
+        self.stride = stride
+        self.props = props
+        self.out_planes = out_planes
+        self.in_planes = in_planes
+
+        if stride is not None:
+            kwargs_conv1 = deepcopy(props['conv_op_kwargs'])
+            kwargs_conv1['stride'] = stride
+        else:
+            kwargs_conv1 = props['conv_op_kwargs']
+
+        self.conv1 = props['conv_op'](in_planes, out_planes, kernel_size, padding=[(i - 1) // 2 for i in kernel_size],
+                                      **kwargs_conv1)
+        self.norm1 = props['norm_op'](out_planes, **props['norm_op_kwargs'])
+        self.nonlin1 = props['nonlin'](**props['nonlin_kwargs'])
+
+        if props['dropout_op_kwargs']['p'] != 0:
+            self.dropout = props['dropout_op'](**props['dropout_op_kwargs'])
+        else:
+            self.dropout = Identity()
+
+        self.conv2 = props['conv_op'](out_planes, out_planes, kernel_size, padding=[(i - 1) // 2 for i in kernel_size],
+                                      **props['conv_op_kwargs'])
+        self.norm2 = props['norm_op'](out_planes, **props['norm_op_kwargs'])
+        self.nonlin2 = props['nonlin'](**props['nonlin_kwargs'])
+
+        if (self.stride is not None and any((i != 1 for i in self.stride))) or (in_planes != out_planes):
+            stride_here = stride if stride is not None else 1
+            self.downsample_skip = nn.Sequential(props['conv_op'](in_planes, out_planes, 1, stride_here, bias=False),
+                                                 props['norm_op'](out_planes, **props['norm_op_kwargs']))
+        else:
+            self.downsample_skip = lambda x: x
+
+    def forward(self, x):
+        residual = x
+
+        out = self.dropout(self.conv1(x))
+        out = self.nonlin1(self.norm1(out))
+
+        out = self.norm2(self.conv2(out))
+
+        return self.nonlin2(out)
+
+
+
+
+
+
+
+
 # 여기서부터 Residual Block
 
 class BasicResidualBlock(nn.Module):
@@ -233,6 +303,21 @@ class ResidualLayer(nn.Module):
 
 
 
+
+class UNetLayer(nn.Module):
+    def __init__(self, input_channels, output_channels, kernel_size, network_props, num_blocks, first_stride=None, block=BasicUNetBlock):
+        super().__init__()
+
+        network_props = deepcopy(network_props)  # network_props is a dict and mutable, so we deepcopy to be safe.
+
+        self.convs = nn.Sequential(
+            block(input_channels, output_channels, kernel_size, network_props, first_stride),
+            *[block(output_channels, output_channels, kernel_size, network_props) for _ in
+              range(num_blocks - 1)]
+        )
+
+    def forward(self, x):
+        return self.convs(x)
 
 #
 #

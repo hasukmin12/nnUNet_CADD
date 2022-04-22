@@ -15,7 +15,7 @@
 
 import numpy as np
 import torch
-from nnunet.network_architecture.custom_modules.conv_block_for_Double_Dense import DenseDownLayer_2, DenseDownBlock_2, DenseUpBlock, DenseUpLayer , DenseDownLayer_first, DenseDownBlock_first
+from nnunet.network_architecture.custom_modules.conv_block_for_Double_Dense import CoordAtt, DenseDownLayer_2, DenseDownBlock_2, DenseUpBlock, DenseUpLayer , DenseDownLayer_first, DenseDownBlock_first
 # from nnunet.network_architecture.custom_modules.conv_blocks import BasicDenseBlock
 from nnunet.network_architecture.generic_UNet import Upsample
 from nnunet.network_architecture.generic_modular_UNet import PlainConvUNetDecoder, get_default_network_config
@@ -195,7 +195,7 @@ class DenseUNetDecoder(nn.Module):
         # bottleneck
 
 
-
+        self.CA = []
         self.tus = []
         self.stages = []
         self.deep_supervision_outputs = []
@@ -206,6 +206,8 @@ class DenseUNetDecoder(nn.Module):
         for i, s in enumerate(np.arange(num_stages)[::-1]):
             features_below = previous_stage_output_features[s+ 1]
             features_skip = previous_stage_output_features[s]
+            self.CA.append(CoordAtt(features_below, features_below))
+            # self.CA.append(CoordAtt(features_skip, features_skip))
 
             self.tus.append(transpconv(features_below, features_skip, previous_stage_pool_kernel_size[s],
                                        previous_stage_pool_kernel_size[s], bias=False))
@@ -233,9 +235,8 @@ class DenseUNetDecoder(nn.Module):
 
 
         self.segmentation_output = self.props['conv_op'](features_skip, num_classes, 1, 1, 0, 1, 1, False)
-        # self.tanh_seg_output = self.props['conv_op'](features_skip, num_classes, 1, 1, 0, 1, 1, False)
 
-
+        self.CA = nn.ModuleList(self.CA)
         self.tus = nn.ModuleList(self.tus)
         self.stages = nn.ModuleList(self.stages)
         self.deep_supervision_outputs = nn.ModuleList(self.deep_supervision_outputs)
@@ -251,24 +252,29 @@ class DenseUNetDecoder(nn.Module):
         x = skips[0]  # this is the bottleneck
 
         for i in range(len(self.tus)):
+
             x = self.tus[i](x)
 
             # if i<3:
             x = torch.cat((x, skips[i + 1]), dim=1)
 
+            x = self.CA[i](x)
+
             x = self.stages[i](x)
+
+            # x = self.CA[i](x)
+
+
             if self.deep_supervision and (i != len(self.tus) - 1):
                 seg_outputs.append(self.deep_supervision_outputs[i](x))
 
         segmentation = self.segmentation_output(x)
         seg_tanh = self.tanh(segmentation)
 
-        # seg_tanh_feature = self.tanh_seg_output(x)
-        # seg_tanh = self.tanh(seg_tanh_feature)
-
         if self.deep_supervision:
             seg_outputs.append(segmentation)
-            return seg_outputs[ ::-1], seg_tanh  # seg_outputs are ordered so that the seg from the highest layer is first, the seg from
+            return seg_outputs[
+                   ::-1], seg_tanh  # seg_outputs are ordered so that the seg from the highest layer is first, the seg from
             # the bottleneck of the UNet last
         else:
             return segmentation, seg_tanh
@@ -305,10 +311,105 @@ class DenseUNetDecoder(nn.Module):
         return tmp * batch_size
 
 
+# class ResidualUNet(SegmentationNetwork):
+#     use_this_for_batch_size_computation_2D = 858931200.0  # 1167982592.0
+#     use_this_for_batch_size_computation_3D = 727842816.0  # 1152286720.0
+#     default_base_num_features = 24
+#     default_conv_per_stage = (2, 2, 2, 2, 2, 2, 2, 2)
+#
+#     def __init__(self, input_channels, base_num_features, num_blocks_per_stage_encoder, feat_map_mul_on_downscale,
+#                  pool_op_kernel_sizes, conv_kernel_sizes, props, num_classes, num_blocks_per_stage_decoder,
+#                  deep_supervision=False, upscale_logits=False, max_features=512, initializer=None,
+#                  block=BasicResidualBlock):
+#         super(ResidualUNet, self).__init__()
+#         self.conv_op = props['conv_op']
+#         self.num_classes = num_classes
+#
+#         self.encoder = ResidualUNetEncoder(input_channels, base_num_features, num_blocks_per_stage_encoder,
+#                                            feat_map_mul_on_downscale, pool_op_kernel_sizes, conv_kernel_sizes,
+#                                            props, default_return_skips=True, max_num_features=max_features, block=block)
+#         self.decoder = ResidualUNetDecoder(self.encoder, num_classes, num_blocks_per_stage_decoder, props,
+#                                            deep_supervision, upscale_logits, block=block)
+#         if initializer is not None:
+#             self.apply(initializer)
+#
+#     def forward(self, x):
+#         skips = self.encoder(x)
+#         return self.decoder(skips)
+#
+#     @staticmethod
+#     def compute_approx_vram_consumption(patch_size, base_num_features, max_num_features,
+#                                         num_modalities, num_classes, pool_op_kernel_sizes, num_conv_per_stage_encoder,
+#                                         num_conv_per_stage_decoder, feat_map_mul_on_downscale, batch_size):
+#         enc = ResidualUNetEncoder.compute_approx_vram_consumption(patch_size, base_num_features, max_num_features,
+#                                                                   num_modalities, pool_op_kernel_sizes,
+#                                                                   num_conv_per_stage_encoder,
+#                                                                   feat_map_mul_on_downscale, batch_size)
+#         dec = ResidualUNetDecoder.compute_approx_vram_consumption(patch_size, base_num_features, max_num_features,
+#                                                                   num_classes, pool_op_kernel_sizes,
+#                                                                   num_conv_per_stage_decoder,
+#                                                                   feat_map_mul_on_downscale, batch_size)
+#
+#         return enc + dec
+
+#
+# class FabiansUNet(SegmentationNetwork):
+#     """
+#     Residual Encoder, Plain conv decoder
+#     """
+#     use_this_for_2D_configuration = 1244233721.0  # 1167982592.0
+#     use_this_for_3D_configuration = 1230348801.0
+#     default_blocks_per_stage_encoder = (1, 2, 3, 4, 4, 4, 4, 4, 4, 4, 4)
+#     default_blocks_per_stage_decoder = (1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
+#     default_min_batch_size = 4 # this is what works with the numbers above
+#
+#     def __init__(self, input_channels, base_num_features, num_blocks_per_stage_encoder, feat_map_mul_on_downscale,
+#                  pool_op_kernel_sizes, conv_kernel_sizes, props, num_classes, num_blocks_per_stage_decoder,
+#                  deep_supervision=False, upscale_logits=False, max_features=512, initializer=None,
+#                  block=BasicResidualBlock,
+#                  props_decoder=None):
+#         super().__init__()
+#         self.conv_op = props['conv_op']
+#         self.num_classes = num_classes
+#
+#         self.encoder = ResidualUNetEncoder(input_channels, base_num_features, num_blocks_per_stage_encoder,
+#                                            feat_map_mul_on_downscale, pool_op_kernel_sizes, conv_kernel_sizes,
+#                                            props, default_return_skips=True, max_num_features=max_features, block=block)
+#         props['dropout_op_kwargs']['p'] = 0
+#         if props_decoder is None:
+#             props_decoder = props
+#         self.decoder = PlainConvUNetDecoder(self.encoder, num_classes, num_blocks_per_stage_decoder, props_decoder,
+#                                             deep_supervision, upscale_logits)
+#         if initializer is not None:
+#             self.apply(initializer)
+#
+#     def forward(self, x):
+#         skips = self.encoder(x)
+#         return self.decoder(skips)
+#
+#     @staticmethod
+#     def compute_approx_vram_consumption(patch_size, base_num_features, max_num_features,
+#                                         num_modalities, num_classes, pool_op_kernel_sizes, num_conv_per_stage_encoder,
+#                                         num_conv_per_stage_decoder, feat_map_mul_on_downscale, batch_size):
+#         enc = ResidualUNetEncoder.compute_approx_vram_consumption(patch_size, base_num_features, max_num_features,
+#                                                                   num_modalities, pool_op_kernel_sizes,
+#                                                                   num_conv_per_stage_encoder,
+#                                                                   feat_map_mul_on_downscale, batch_size)
+#         dec = PlainConvUNetDecoder.compute_approx_vram_consumption(patch_size, base_num_features, max_num_features,
+#                                                                    num_classes, pool_op_kernel_sizes,
+#                                                                    num_conv_per_stage_decoder,
+#                                                                    feat_map_mul_on_downscale, batch_size)
+#
+#         return enc + dec
+
+
+
+
+
 
 # FabianUNet을 보고 참고해서 plan_and_precess부터 싹 다 수정함
 
-class SDDenseUNet(SegmentationNetwork):
+class CA_MDD_UNet(SegmentationNetwork):
     """
     Residual Encoder, Plain conv decoder
     """
@@ -345,8 +446,8 @@ class SDDenseUNet(SegmentationNetwork):
 
     def forward(self, x):
         skips = self.encoder(x)
-        seg, seg_tanh = self.decoder(skips)
-        return seg, seg_tanh
+        rst = self.decoder(skips)
+        return rst
 
     @staticmethod
     def compute_approx_vram_consumption(patch_size, base_num_features, max_num_features,
@@ -402,8 +503,8 @@ def find_3d_configuration():
     batch_size = 2
 
     # now we fiddle with the network specific hyperparameters until everything just barely fits into a titanx
-    blocks_per_stage_encoder = SDDenseUNet.default_blocks_per_stage_encoder
-    blocks_per_stage_decoder = SDDenseUNet.default_blocks_per_stage_decoder
+    blocks_per_stage_encoder = CA_MDD_UNet.default_blocks_per_stage_encoder
+    blocks_per_stage_decoder = CA_MDD_UNet.default_blocks_per_stage_decoder
     initial_num_features = 32
 
     # we neeed to add a [1, 1, 1] for the res unet because in this implementation all stages of the encoder can have a stride
@@ -423,7 +524,7 @@ def find_3d_configuration():
                             [3, 3, 3],
                             [3, 3, 3]]
 
-    unet = SDDenseUNet(num_modalities, initial_num_features, blocks_per_stage_encoder[:len(conv_op_kernel_sizes)], 2,
+    unet = CA_MDD_UNet(num_modalities, initial_num_features, blocks_per_stage_encoder[:len(conv_op_kernel_sizes)], 2,
                        pool_op_kernel_sizes, conv_op_kernel_sizes,
                        get_default_network_config(3, dropout_p=None), num_classes,
                        blocks_per_stage_decoder[:len(conv_op_kernel_sizes)-1], False, False,
@@ -450,7 +551,7 @@ def find_3d_configuration():
 
     # that should do. Now take the network hyperparameters and insert them in FabiansUNet.compute_approx_vram_consumption
     # whatever number this spits out, save it to FabiansUNet.use_this_for_batch_size_computation_3D
-    print(SDDenseUNet.compute_approx_vram_consumption(patch_size, initial_num_features, max_num_features, num_modalities,
+    print(CA_MDD_UNet.compute_approx_vram_consumption(patch_size, initial_num_features, max_num_features, num_modalities,
                                                 num_classes, pool_op_kernel_sizes,
                                                 blocks_per_stage_encoder[:len(conv_op_kernel_sizes)],
                                                 blocks_per_stage_decoder[:len(conv_op_kernel_sizes)-1], 2, batch_size))

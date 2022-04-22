@@ -30,7 +30,8 @@ PLEASE READ paths.md FOR INFORMATION TO HOW TO SET THIS UP
 # base = os.environ['nnUNet_raw_data_base'] if "nnUNet_raw_data_base" in os.environ.keys() else None
 base = '/data5/sukmin/nnUNet_raw_data_base'
 preprocessing_output_dir = '/data5/sukmin/nnunet_process_out'
-network_training_output_dir_base = '/data5/sukmin/nnunet_train_out'
+# network_training_output_dir_base = '/data5/sukmin/nnunet_train_out'
+network_training_output_dir_base = '/home/sukmin/nnunet_train_out'
 # preprocessing_output_dir = os.environ['nnUNet_preprocessed'] if "nnUNet_preprocessed" in os.environ.keys() else None
 # network_training_output_dir_base = os.path.join(os.environ['RESULTS_FOLDER']) if "RESULTS_FOLDER" in os.environ.keys() else None
 

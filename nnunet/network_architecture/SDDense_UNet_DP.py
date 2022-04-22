@@ -13,9 +13,8 @@
 #    limitations under the License.
 
 
-
 import torch
-from nnunet.network_architecture.SDDense_UNet import SDDenseUNet
+from nnunet.network_architecture.SDDense_UNet import CA_MDD_UNet
 from nnunet.network_architecture.initialization import InitWeights_He
 from nnunet.training.loss_functions.crossentropy import RobustCrossEntropyLoss
 from nnunet.training.loss_functions.dice_loss import get_tp_fp_fn_tn
@@ -28,7 +27,7 @@ from torch.nn import MSELoss
 from torch import nn
 from nnunet.training.loss_functions.dice_loss import DC_and_CE_loss
 
-class SDDenseUNet_DP(SDDenseUNet):
+class SDDenseUNet_DP(CA_MDD_UNet):
     def __init__(self, input_channels, base_num_features, num_blocks_per_stage_encoder, feat_map_mul_on_downscale,
                  pool_op_kernel_sizes, conv_kernel_sizes, props, num_classes, num_blocks_per_stage_decoder,
                  deep_supervision=False, upscale_logits=False, max_features=512, initializer=None,
@@ -43,6 +42,8 @@ class SDDenseUNet_DP(SDDenseUNet):
 
 
         self.ce_loss = RobustCrossEntropyLoss()
+        # self.loss = DC_and_CE_loss({'batch_dice': True, 'smooth': 1e-5, 'do_bg': False}, {})
+        # self.loss = MultipleOutputLoss2(self.loss, self.ds_loss_weights)
 
 
 # 여기서 x는 input(CT 영상), y는 label된 GT(Label GT)이다.
@@ -55,51 +56,84 @@ class SDDenseUNet_DP(SDDenseUNet):
     def forward(self, x, y=None, return_hard_tp_fp_fn=False):
         res, res_tanh = super(SDDenseUNet_DP, self).forward(x)  # regular Generic_UNet forward pass
 
-
         if y is None:
             return res, res_tanh
 
-
-
-
         # 여기로 들어간다고 보면 된다.
         else:
-            # compute ce loss
-            # print("compute ce loss")
-
-            # self._deep_supervision = True
             if self._deep_supervision and self.do_ds:
-                # print("deep_supervision is True")
-                ce_losses = [self.ce_loss(res[0], y[0]).unsqueeze(0)]
-                # ce_losses_0 = [self.ce_loss(res[0][:][0], y[0]).unsqueeze(0)]
-                # ce_losses_1 = [self.ce_loss(res[0][:][1], y[0]).unsqueeze(0)]
 
-                # print("ce_losses : ", ce_losses.shape)
+                if y[0].max() == 0:
+                # label이 없는 경우 여기서 loss 구현하자
+                # res_tanh과 res의 T^-1과의 MSE를 loss로 구현
+                # print(x, "no label is here")
+                    dis_to_mask = torch.sigmoid(-1500 * res_tanh)
+                    outputs_soft = torch.sigmoid(res[0])
+                    # consistency_loss = torch.mean((dis_to_mask - outputs_soft) ** 2)
+                    consistency_loss = self.ce_loss(dis_to_mask, outputs_soft)
+                    consistency_loss = torch.unsqueeze(consistency_loss, 0)
 
+                    return consistency_loss
 
+                else:
 
+                    ce_losses = [self.ce_loss(res[0], y[0]).unsqueeze(0)]
 
-                # tp : True Positive
-                # fp : False Positive
-                # fn : False Negative
-                tps = []
-                fps = []
-                fns = []
+                    # tp : True Positive
+                    # fp : False Positive
+                    # fn : False Negative
+                    tps = []
+                    fps = []
+                    fns = []
 
-                res_softmax = softmax_helper(res[0])
-               # print("res_softmax.shape : ", res_softmax.shape)
-                tp, fp, fn, _ = get_tp_fp_fn_tn(res_softmax, y[0])
-                tps.append(tp)
-                fps.append(fp)
-                fns.append(fn)
-                for i in range(1, len(y)):
-                    ce_losses.append(self.ce_loss(res[i], y[i]).unsqueeze(0))
-                    res_softmax = softmax_helper(res[i])
-                    tp, fp, fn, _ = get_tp_fp_fn_tn(res_softmax, y[i])
+                    res_softmax = softmax_helper(res[0])
+                   # print("res_softmax.shape : ", res_softmax.shape)
+                    tp, fp, fn, _ = get_tp_fp_fn_tn(res_softmax, y[0])
                     tps.append(tp)
                     fps.append(fp)
                     fns.append(fn)
-                ret = ce_losses, tps, fps, fns
+                    for i in range(1, len(y)):
+                        ce_losses.append(self.ce_loss(res[i], y[i]).unsqueeze(0))
+                        res_softmax = softmax_helper(res[i])
+                        tp, fp, fn, _ = get_tp_fp_fn_tn(res_softmax, y[i])
+                        tps.append(tp)
+                        fps.append(fp)
+                        fns.append(fn)
+
+
+
+                    # loss between output, output_tanh
+                    dis_to_mask = torch.sigmoid(-1500 * res_tanh)
+                    outputs_soft = torch.sigmoid(res[0])
+                    # consistency_loss = torch.mean((dis_to_mask - outputs_soft) ** 2)
+                    consistency_loss = self.ce_loss(dis_to_mask, outputs_soft)
+                    consistency_loss = torch.unsqueeze(consistency_loss, 0)
+
+
+                    # loss between output_tanh, GT_tanh
+                    # gt_dis = compute_sdf(y[0].cpu().numpy(), res[0].shape)
+                    gt_dis = compute_sdf(y.cpu().numpy(), res[0].shape)
+                    gt_dis = torch.from_numpy(gt_dis).float().cuda()
+                    loss_sdf = self.ce_loss(res_tanh, gt_dis)  # torch.mean((res_tanh-gt_dis) ** 2)
+                    # loss_sdf = boundary_loss(res_tanh, gt_dis)
+
+
+                    consistency_loss = consistency_loss * 0.1
+                    loss_sdf = loss_sdf * 0.2
+
+
+                    # # loss between output_tanh, GT_tanh
+                    # gt_dis = compute_sdf(y[0].cpu().numpy(), res[0].shape)
+                    # gt_dis = torch.from_numpy(gt_dis).float().cuda()
+                    # # loss_sdf = torch.mean((res_tanh - gt_dis) ** 2)
+                    # loss_sdf = boundary_loss(res_tanh, gt_dis)
+
+
+                    ret = ce_losses, tps, fps, fns# , consistency_loss, loss_sdf
+                    return ret
+
+
+
 
             # 여긴 안쓰인다고 보면된다.
             else:

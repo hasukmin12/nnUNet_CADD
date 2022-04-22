@@ -125,4 +125,4 @@ if __name__ == "__main__":
         val_patients = patients[val]
         splits[-1]['val'] = [i for i in val_patients]
 
-    save_pickle(splits, "/data5/sukmin/nnunet_process_out/Task257_Ureter/splits_final.pkl")
+    save_pickle(splits, "/data5/sukmin/nnunet_process_out/Task269_Ureter/splits_final.pkl")

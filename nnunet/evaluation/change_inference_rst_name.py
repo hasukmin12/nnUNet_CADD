@@ -2,9 +2,9 @@ import os
 import shutil
 
 # GT_path = '/data/sukmin/nnUNet_raw_data_base/nnUNet_raw_data/Task130_Ureter/labelsTs'
-inf_path = '/data5/sukmin/CT_2_inference_rst_263_fc'
+inf_path = '/data5/sukmin/CT_2_inference_rst_275_Res_fc'
 
-aim_path = '/data5/sukmin/inf_2_GT_263_fc'
+aim_path = '/data5/sukmin/inf_2_GT_275_Res_fc'
 if os.path.isdir(aim_path)==False:
     os.makedirs(aim_path)
 

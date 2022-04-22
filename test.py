@@ -1,9 +1,4 @@
-import pdb
+a = [0, 1, 2, 3]
 
-
-a= 23
-b = 32
-pdb.set_trace()
-
-
-c = 1
+if 4 not in a:
+    print(a)

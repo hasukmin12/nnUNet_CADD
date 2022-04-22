@@ -91,6 +91,7 @@ class HasTrainer_DP_SDDense(nnUNetTrainerV2_DA3_for_DTC): #nnUNetTrainerV2):
 
         if torch.cuda.is_available():
             self.network.cuda()
+
         self.network.inference_apply_nonlin = softmax_helper
 
     def setup_DA_params(self):
@@ -178,9 +179,9 @@ class HasTrainer_DP_SDDense(nnUNetTrainerV2_DA3_for_DTC): #nnUNetTrainerV2):
 
         # 이거 추가함 (멀티 gpu)
         # a = self.network
-        # self.network = DataParallel(self.network, tuple(range(self.num_gpus)), )
+        self.network = DataParallel(self.network, tuple(range(self.num_gpus)), )
 
-        ret = nnUNetTrainer.run_training(self)
+        ret, ret_tanh = nnUNetTrainer.run_training(self)
 
         ## if traning is end
         # print(self.epoch)
@@ -189,8 +190,6 @@ class HasTrainer_DP_SDDense(nnUNetTrainerV2_DA3_for_DTC): #nnUNetTrainerV2):
         #     self.network = a
 
         self.network.decoder.deep_supervision = ds
-
-
 
         return ret
 
