@@ -401,7 +401,7 @@ Task 272 : Task263 + Bladder, Kideny with loss modify - 요관 부정확한건 �
 
 * - 일반 3D UNet
 3d_fullres nnUNetTrainerV2_DP Task295_Urinary 4 -gpu 4
-c --disable_tta
+-i /data5/sukmin/CT_2_inference6_test_69_rt -o /data5/sukmin/CT_2_inference_rst_295_UNet -t Task295_Urinary -tr nnUNetTrainerV2_DP -m 3d_fullres -chk model_best -f 4  --disable_tta
 
 ----------------------------------------------------------------------------------------------------------
 
@@ -414,109 +414,4 @@ c --disable_tta
 
 
 
-
-
-
-
-----------------------------------------------------------------------------------------------------------
-KiPA challenge
-----------------------------------------------------------------------------------------------------------
-
-Task 301 : basic nnunet
-3d_fullres nnUNetTrainerV2_DP Task301_KiPA 4 -gpu 4
--i /data5/sukmin/CT_2_inference_KiPA -o /data5/sukmin/CT_2_inference_rst_301_base -t Task301_KiPA -tr nnUNetTrainerV2_DP -m 3d_fullres -chk model_best -f 4  --disable_tta
-
--t 301 -pl3d ExperimentPlanner_Double_Dense_3DUNet_v21
-3d_fullres HasTrainer_DP_CADD_3kid Task301_KiPA 4 -gpu 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
--i /data5/sukmin/CT_2_inference_KiPA -o /data5/sukmin/CT_2_inference_rst_301_CADD_PL -t Task301_KiPA -tr HasTrainer_DP_CADD_3kid -m 3d_fullres -chk model_best -f 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
-
-
-
-3d_fullres HasTrainer_DP_UNet_3kid Task301_KiPA 4 -gpu 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2 : portion my unet
-
-nnUNetTrainerV2_3kid_DP : portion unet
-f
-
-
-
-3d_fullres nnUNetTrainerV2_3kid_DP Task301_KiPA 4 -gpu 4
-3d_fullres HasTrainer_DP_UNet_3kid Task301_KiPA 4 -gpu 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
-
--i /data5/sukmin/CT_2_inference_KiPA -o /data5/sukmin/CT_2_inference_rst_301_pl_e250 -t Task301_KiPA -tr nnUNetTrainerV2_3kid_DP -m 3d_fullres -chk model_best -f 4 --disable_tta
--i /data5/sukmin/CT_2_inference_KiPA -o /data5/sukmin/CT_2_inference_rst_301_pl_unet -t Task301_KiPA -tr HasTrainer_DP_UNet_3kid -m 3d_fullres -chk model_best -f 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
-
-
-
-----------------------------------------------------------------------------------------------------------
-
-
-
-Task 302 : focal loss
--t 302 -pl3d ExperimentPlanner_Double_Dense_3DUNet_v21
-3d_fullres HasTrainer_DP_UNet_3kid Task302_KiPA 4 -gpu 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-----------------------------------------------------------------------------------------------------------
-
-* Task 307 : only ureter
-/home/sukmin/anaconda3/bin/python /home/sukmin/nnUNet/nnunet/experiment_planning/nnUNet_plan_and_preprocess.py -t 307 -pl3d ExperimentPlanner_Double_Dense_3DUNet_v21
-/home/sukmin/anaconda3/bin/python /home/sukmin/nnUNet/nnunet/run/run_training_DP.py 3d_fullres nnUNetTrainerV2_DP Task307_Ureter 4 -gpu 1
-
-
-
-
-* Task 309 : 요관 + 방광 + no portion loss
-
-
-
-
-
-* Task 310 : 요관 + 방광 + portion loss
-/home/sukmin/anaconda3/bin/python /home/sukmin/nnUNet/nnunet/experiment_planning/nnUNet_plan_and_preprocess.py -t 310 -pl3d ExperimentPlanner_Double_Dense_3DUNet_v21
-
-- CADD
-/home/sukmin/anaconda3/bin/python /home/sukmin/nnUNet/nnunet/run/run_training_DP.py 3d_fullres HasTrainer_DP_CADD_3kid Task310_Urinary 4 -gpu 1 -p nnUNetPlans_Double_DenseUNet_v2.1_2
--i /data5/sukmin/CT_2_inference6_test_69_rt -o /data5/sukmin/CT_2_inference_rst_275_CADD -t Task275_Urinary -tr HasTrainer_DP_CADD_3kid -m 3d_fullres -chk model_best -f 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
-
-- DDense
-/home/sukmin/anaconda3/bin/python /home/sukmin/nnUNet/nnunet/run/run_training_DP.py 3d_fullres HasTrainer_DP_CADD_3kid Task310_Urinary 4 -gpu 1 -p nnUNetPlans_Double_DenseUNet_v2.1_2
-
-- Dense
-
-- ResUNet
-/home/sukmin/anaconda3/bin/python /home/sukmin/nnUNet/nnunet/run/run_training_DP.py 3d_fullres HasTrainer_DP_Res Task310_Urinary 4 -gpu 1 -p nnUNetPlans_Double_DenseUNet_v2.1_2
-
-
-- UNet
-/home/sukmin/anaconda3/bin/python /home/sukmin/nnUNet/nnunet/run/run_training_DP.py 3d_fullres nnUNetTrainerV2_3kid_DP Task310_Urinary 4 -gpu 1
-/home/sukmin/anaconda3/bin/python /home/sukmin/nnUNet/nnunet/inference/predict_simple.py -i /vast/AI_team/sukmin/datasets/CT_2_inference6_test_69_rt -o /vast/AI_team/sukmin/CT_2_inference_rst_310_UNet_nnUNetTrainer -t Task310_Urinary -tr nnUNetTrainerV2_3kid_DP -m 3d_fullres -chk model_best -f 4 --disable_tta
-
-
-
-
-----------------------------------------------------------------------------------------------------------
-
-
-
-
-training 
-/home/sukmin/anaconda3/bin/python /home/sukmin/nnUNet/nnunet/run/run_training_DP.py 3d_fullres nnUNetTrainerV2_3kid_DP Task310_Urinary 4 -gpu 1 -C
-
-/home/sukmin/anaconda3/bin/python /home/sukmin/nnUNet/nnunet/run/run_training_DP.py 3d_fullres nnUNetTrainerV2_DP Task295_Ureter 4 -gpu 1
-
-
-inference
-/home/sukmin/anaconda3/bin/python /home/sukmin/nnUNet/nnunet/inference/predict_simple.py -i /vast/AI_team/sukmin/datasets/CT_2_inference6_test_69_rt -o /vast/AI_team/sukmin/CT_2_inference_rst_310_UNet_nnUNetTrainer -t Task310_Urinary -tr nnUNetTrainerV2_3kid_DP -m 3d_fullres -chk model_best -f 4 --disable_tta
 
