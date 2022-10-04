@@ -5,7 +5,7 @@ several datasets and tips on how to identify bottlenecks](documentation/expected
 Please read these documents before opening a new issue!
 
 
-# nnU-Net
+# nnU-Net with CADD-UNet
 
 In 3D biomedical image segmentation, dataset properties like imaging modality, image sizes, voxel spacings, class 
 ratios etc vary drastically.
