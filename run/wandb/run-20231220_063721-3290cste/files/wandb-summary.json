@@ -1,0 +1,1 @@
+{"loss_total_iter": 1.098792552947998, "_timestamp": 1703150868, "_runtime": 96627, "_step": 4949, "loss_total": 600.9430339336395, "acc_val": 0.20384678612526716, "_wandb": {"runtime": 96627}}

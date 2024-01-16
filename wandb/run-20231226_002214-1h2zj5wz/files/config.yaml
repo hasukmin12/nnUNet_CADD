@@ -1,0 +1,67 @@
+wandb_version: 1
+
+BALANCE_CLASS:
+  desc: null
+  value:
+  - 1.0
+  - 1.0
+  - 1.0
+BATCH_SIZE:
+  desc: null
+  value: 64
+DROP_OUT_RATE:
+  desc: null
+  value: 0.0
+LEARNING_RATE:
+  desc: null
+  value: 0.001
+LOAD_MODEL_DIR:
+  desc: null
+  value: false
+LOSS_NAME:
+  desc: null
+  value: CE
+MODEL_NAME:
+  desc: null
+  value: eva_giant_patch14_224.clip_ft_in1k
+NUM_EPOCH:
+  desc: null
+  value: 90
+OPTIMIZER:
+  desc: null
+  value: AdamW
+PATCH_SIZE:
+  desc: null
+  value:
+  - 224
+  - 224
+PRETRAINED:
+  desc: null
+  value: true
+SCHEDULER:
+  desc: null
+  value: MultiStepLR
+SEEDS:
+  desc: null
+  value: 42
+_wandb:
+  desc: null
+  value:
+    cli_version: 0.12.16
+    framework: torch
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    python_version: 3.10.6
+    start_time: 1703550134
+    t:
+      1:
+      - 1
+      - 41
+      - 49
+      - 55
+      3:
+      - 13
+      4: 3.10.6
+      5: 0.12.16
+      8:
+      - 5

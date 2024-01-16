@@ -1,0 +1,17 @@
+{
+    "os": "Linux-5.4.0-81-generic-x86_64-with-glibc2.35",
+    "python": "3.10.6",
+    "heartbeatAt": "2023-12-07T08:01:20.595947",
+    "startedAt": "2023-12-07T08:01:11.912112",
+    "docker": null,
+    "gpu": "NVIDIA A100 80GB PCIe",
+    "gpu_count": 2,
+    "cpu_count": 112,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "/home/sukmin/SeeDP_baseline/trainers/patch/baseline.py",
+    "host": "8c64a270c69d",
+    "username": "root",
+    "executable": "/bin/python3"
+}

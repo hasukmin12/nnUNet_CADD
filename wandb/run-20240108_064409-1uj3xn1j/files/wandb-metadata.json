@@ -1,0 +1,17 @@
+{
+    "os": "Linux-5.4.0-81-generic-x86_64-with-glibc2.35",
+    "python": "3.10.6",
+    "heartbeatAt": "2024-01-08T06:44:10.884085",
+    "startedAt": "2024-01-08T06:44:09.689096",
+    "docker": null,
+    "gpu": "NVIDIA A100 80GB PCIe",
+    "gpu_count": 2,
+    "cpu_count": 112,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "/home/sukmin/SeeDP_Has/train/patch/train_DDenseNet_torchvision.py",
+    "host": "f1d4c9bbc0ae",
+    "username": "root",
+    "executable": "/bin/python3"
+}

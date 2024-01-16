@@ -1,0 +1,17 @@
+{
+    "os": "Linux-5.4.0-81-generic-x86_64-with-glibc2.35",
+    "python": "3.10.6",
+    "heartbeatAt": "2023-12-28T23:41:36.601200",
+    "startedAt": "2023-12-28T23:41:35.432673",
+    "docker": null,
+    "gpu": "NVIDIA A100 80GB PCIe",
+    "gpu_count": 2,
+    "cpu_count": 112,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "/home/sukmin/SeeDP_Has/train/patch/train.py",
+    "host": "f1d4c9bbc0ae",
+    "username": "root",
+    "executable": "/bin/python3"
+}
