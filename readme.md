@@ -36,6 +36,8 @@ experimnet_planning/nnUNet_plan_and_preprocess.py -t 300 -pl3d ExperimentPlanner
 
 
 &nbsp;
+&nbsp;
+&nbsp;
 # Train for Multi-Class with Proportion Loss (Urinary system)
 
 1. Setting Dataset Path
@@ -66,8 +68,8 @@ experimnet_planning/nnUNet_plan_and_preprocess.py -t 310 -pl3d ExperimentPlanner
 -i {Input Path} -o {Output Path} -t Task_310_Urinary -tr HasTrainer_DP_CADD_3kid -m 3d_fullres -chk model_best -f 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
 ```
 
-
-
+&nbsp;
+&nbsp;
 &nbsp;
 # About nnU-Net and installation
 
