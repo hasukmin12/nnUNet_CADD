@@ -2,8 +2,8 @@
 
 We propose a novel network, CADD-UNet, optimized for small object segmentation, based on the nnUNet pipeline that is tailored for medical image segmentation. The usage guidelines for the proposed network are outlined below:
 
-
-# Train for one class (Ureter)
+&nbsp;
+# Train for One Class (Ureter)
 
 1. Setting Dataset Path
 Set the path from the below script.
@@ -35,10 +35,8 @@ experimnet_planning/nnUNet_plan_and_preprocess.py -t 300 -pl3d ExperimentPlanner
 ```
 
 
-
-
-
-# Train for multi-class (Urinary system)
+&nbsp;
+# Train for Multi-Class with Proportion Loss (Urinary system)
 
 1. Setting Dataset Path
 Set the path from the below script.
@@ -70,9 +68,7 @@ experimnet_planning/nnUNet_plan_and_preprocess.py -t 310 -pl3d ExperimentPlanner
 
 
 
-
-
-
+&nbsp;
 # About nnU-Net and installation
 
 In 3D biomedical image segmentation, dataset properties like imaging modality, image sizes, voxel spacings, class 
