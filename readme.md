@@ -1,11 +1,73 @@
-**[2020_10_21] Update:** We now have documentation for [common questions](documentation/common_questions.md) and
-[common issues](documentation/common_problems_and_solutions.md). We now also provide [reference epoch times for 
-several datasets and tips on how to identify bottlenecks](documentation/expected_epoch_times.md).
-
-Please read these documents before opening a new issue!
-
-
 # nnU-Net with CADD-UNet
+
+We propose a novel network, CADD-UNet, optimized for small object segmentation, based on the nnUNet pipeline that is tailored for medical image segmentation. The usage guidelines for the proposed network are outlined below:
+
+
+<Train for one class (Ureter)>
+
+1. Setting Dataset Path
+Set the path from the below script.
+[paths.py]
+
+2. Dataset conversion (ex, Task 300)
+```bash
+dataset_conversion/Task_300_Ureter.py
+```
+
+3. Data Preprocessing
+```bash
+experimnet_planning/nnUNet_plan_and_preprocess.py -t 300
+experimnet_planning/nnUNet_plan_and_preprocess.py -t 300 -pl3d ExperimentPlanner_Double_Dense_3DUNet_v21
+```
+
+4. Train
+```bash
+/home/sukmin/nnUNet_CADD/run/run_training_DP.py 
+-network 3d_fullres -network_trainer HasTrainer_DP_CADD -task Task300_Ureter -fold 4 -gpu 1 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+```
+
+5. Inference
+```bash
+/home/sukmin/nnUNet_CADD/inference/predict_simple.py 
+-i {Input Path} -o {Output Path}  -t Task273_Urinary -tr HasTrainer_DP_CADD_3kid -m 3d_fullres -chk model_best -f 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+```
+
+
+
+<Train for multi-class (Urinary system)>
+
+1. Setting Dataset Path
+Set the path from the below script.
+[paths.py]
+
+2. Dataset conversion (ex, Task 310)
+```bash
+dataset_conversion/Task_310_Urinary.py
+```
+3. Data Preprocessing
+```bash
+experimnet_planning/nnUNet_plan_and_preprocess.py -t 310
+experimnet_planning/nnUNet_plan_and_preprocess.py -t 310 -pl3d ExperimentPlanner_Double_Dense_3DUNet_v21
+```
+
+4. Train
+```bash
+/home/sukmin/nnUNet_CADD/run/run_training_DP.py 
+-network 3d_fullres -network_trainer HasTrainer_DP_CADD_3kid -task Task_310_Urinary -fold 4 -gpu 1 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+```
+
+5. Inference
+```bash
+/home/sukmin/nnUNet_CADD/inference/predict_simple.py 
+-i {Input Path} -o {Output Path} -t Task_310_Urinary -tr HasTrainer_DP_CADD_3kid -m 3d_fullres -chk model_best -f 4 -p nnUNetPlans_Double_DenseUNet_v2.1_2
+```
+
+
+
+
+
+
+# About nnU-Net and installation
 
 In 3D biomedical image segmentation, dataset properties like imaging modality, image sizes, voxel spacings, class 
 ratios etc vary drastically.
@@ -55,20 +117,6 @@ Please also cite this paper if you are using nnU-Net for your research!
   * [How to run nnU-Net on a new dataset](#how-to-run-nnu-net-on-a-new-dataset)
     + [Dataset conversion](#dataset-conversion)
     + [Experiment planning and preprocessing](#experiment-planning-and-preprocessing)
-    + [Model training](#model-training)
-      - [2D U-Net](#2d-u-net)
-      - [3D full resolution U-Net](#3d-full-resolution-u-net)
-      - [3D U-Net cascade](#3d-u-net-cascade)
-        * [3D low resolution U-Net](#3d-low-resolution-u-net)
-        * [3D full resolution U-Net](#3d-full-resolution-u-net-1)
-      - [Multi GPU training](#multi-gpu-training)
-    + [Identifying the best U-Net configuration](#identifying-the-best-u-net-configuration)
-    + [Run inference](#run-inference)
-  * [How to run inference with pretrained models](#how-to-run-inference-with-pretrained-models)
-  * [Examples](#examples)
-- [Extending/Changing nnU-Net](#extending-or-changing-nnu-net)
-- [Information on run time and potential performance bottlenecks.](#information-on-run-time-and-potential-performance-bottlenecks)
-- [Common questions and issues](#common-questions-and-issues)
 
 
 # Installation
@@ -183,284 +231,3 @@ Extraction of the dataset fingerprint can take from a couple of seconds to sever
 of the segmentation task. Pipeline configuration given the extracted finger print is nearly instantaneous (couple 
 of seconds). Preprocessing depends on image size and how powerful the CPU is. It can take between seconds and several 
 tens of minutes.
-
-### Model training
-nnU-Net trains all U-Net configurations in a 5-fold cross-validation. This enables nnU-Net to determine the 
-postprocessing and ensembling (see next step) on the training dataset. Per default, all U-Net configurations need to 
-be run on a given dataset. There are, however situations in which only some configurations (and maybe even without 
-running the cross-validation) are desired. See [FAQ](documentation/common_questions.md) for more information.
-
-Note that not all U-Net configurations are created for all datasets. In datasets with small image sizes, the U-Net 
-cascade is omitted because the patch size of the full resolution U-Net already covers a large part of the input images.
-
-Training models is done with the `nnUNet_train` command. The general structure of the command is:
-```bash
-nnUNet_train CONFIGURATION TRAINER_CLASS_NAME TASK_NAME_OR_ID FOLD  --npz (additional options)
-```
-
-CONFIGURATION is a string that identifies the requested U-Net configuration. TRAINER_CLASS_NAME is the name of the 
-model trainer. If you implement custom trainers (nnU-Net as a framework) you can specify your custom trainer here.
-TASK_NAME_OR_ID specifies what dataset should be trained on and FOLD specifies which fold of the 5-fold-cross-validaton 
-is trained.
-
-nnU-Net stores a checkpoint every 50 epochs. If you need to continue a previous training, just add a `-c` to the 
-training command.
-
-IMPORTANT: `--npz` makes the models save the softmax outputs during the final validation. It should only be used for trainings 
-where you plan to run `nnUNet_find_best_configuration` afterwards 
-(this is nnU-Nets automated selection of the best performing (ensemble of) configuration(s), see below). If you are developing new 
-trainer classes you may not need the softmax predictions and should therefore omit the `--npz` flag. Exported softmax 
-predictions are very large and therefore can take up a lot of disk space.
-If you ran initially without the `--npz` flag but now require the softmax predictions, simply run 
-```bash
-nnUNet_train CONFIGURATION TRAINER_CLASS_NAME TASK_NAME_OR_ID FOLD -val --npz
-```
-to generate them. This will only rerun the validation, not the training.
-
-See `nnUNet_train -h` for additional options.
-
-#### 2D U-Net
-For FOLD in [0, 1, 2, 3, 4], run:
-```bash
-nnUNet_train 2d nnUNetTrainerV2 TaskXXX_MYTASK FOLD --npz
-```
-
-#### 3D full resolution U-Net
-For FOLD in [0, 1, 2, 3, 4], run:
-```bash
-nnUNet_train 3d_fullres nnUNetTrainerV2 TaskXXX_MYTASK FOLD --npz
-```
-
-#### 3D U-Net cascade
-##### 3D low resolution U-Net
-For FOLD in [0, 1, 2, 3, 4], run:
-```bash
-nnUNet_train 3d_lowres nnUNetTrainerV2 TaskXXX_MYTASK FOLD --npz
-```
-
-##### 3D full resolution U-Net
-For FOLD in [0, 1, 2, 3, 4], run:
-```bash
-nnUNet_train 3d_cascade_fullres nnUNetTrainerV2CascadeFullRes TaskXXX_MYTASK FOLD --npz
-```
-
-Note that the 3D full resolution U-Net of the cascade requires the five folds of the low resolution U-Net to be 
-completed beforehand!
-
-The trained models will we written to the RESULTS_FOLDER/nnUNet folder. Each training obtains an automatically generated 
-output folder name:
-
-nnUNet_preprocessed/CONFIGURATION/TaskXXX_MYTASKNAME/TRAINER_CLASS_NAME__PLANS_FILE_NAME/FOLD
-
-For Task002_Heart (from the MSD), for example, this looks like this:
-
-    RESULTS_FOLDER/nnUNet/
-    ├── 2d
-    │   └── Task02_Heart
-    │       └── nnUNetTrainerV2__nnUNetPlansv2.1
-    │           ├── fold_0
-    │           ├── fold_1
-    │           ├── fold_2
-    │           ├── fold_3
-    │           └── fold_4
-    ├── 3d_cascade_fullres
-    ├── 3d_fullres
-    │   └── Task02_Heart
-    │       └── nnUNetTrainerV2__nnUNetPlansv2.1
-    │           ├── fold_0
-    │           │   ├── debug.json
-    │           │   ├── model_best.model
-    │           │   ├── model_best.model.pkl
-    │           │   ├── model_final_checkpoint.model
-    │           │   ├── model_final_checkpoint.model.pkl
-    │           │   ├── network_architecture.pdf
-    │           │   ├── progress.png
-    │           │   └── validation_raw
-    │           │       ├── la_007.nii.gz
-    │           │       ├── la_007.pkl
-    │           │       ├── la_016.nii.gz
-    │           │       ├── la_016.pkl
-    │           │       ├── la_021.nii.gz
-    │           │       ├── la_021.pkl
-    │           │       ├── la_024.nii.gz
-    │           │       ├── la_024.pkl
-    │           │       ├── summary.json
-    │           │       └── validation_args.json
-    │           ├── fold_1
-    │           ├── fold_2
-    │           ├── fold_3
-    │           └── fold_4
-    └── 3d_lowres
-
-
-Note that 3d_lowres and 3d_cascade_fullres are not populated because this dataset did not trigger the cascade. In each 
-model training output folder (each of the fold_x folder, 10 in total here), the following files will be created (only 
-shown for one folder above for brevity):
-- debug.json: Contains a summary of blueprint and inferred parameters used for training this model. Not easy to read, 
-but very useful for debugging ;-)
-- model_best.model / model_best.model.pkl: checkpoint files of the best model identified during training. Not used right now.
-- model_final_checkpoint.model / model_final_checkpoint.model.pkl: checkpoint files of the final model (after training 
-has ended). This is what is used for both validation and inference.
-- network_architecture.pdf (only if hiddenlayer is installed!): a pdf document with a figure of the network architecture in it.
-- progress.png: A plot of the training (blue) and validation (red) loss during training. Also shows an approximation of 
-the evlauation metric (green). This approximation is the average Dice score of the foreground classes. It should, 
-however, only to be taken with a grain of salt because it is computed on randomly drawn patches from the validation 
-data at the end of each epoch, and the aggregation of TP, FP and FN for the Dice computation treats the patches as if 
-they all originate from the same volume ('global Dice'; we do not compute a Dice for each validation case and then 
-average over all cases but pretend that there is only one validation case from which we sample patches). The reason for 
-this is that the 'global Dice' is easy to compute during training and is still quite useful to evaluate whether a model 
-is training at all or not. A proper validation is run at the end of the training.
-- validation_raw: in this folder are the predicted validation cases after the training has finished. The summary.json 
-contains the validation metrics (a mean over all cases is provided at the end of the file).
-
-During training it is often useful to watch the progress. We therefore recommend that you have a look at the generated 
-progress.png when running the first training. It will be updated after each epoch.
-
-Training times largely depend on the GPU. The smallest GPU we recommend for training is the Nvidia RTX 2080ti. With 
-this GPU (and pytorch compiled with cuDNN 8.0.2), all network trainings take less than 2 days.
-
-#### Multi GPU training
-
-**Multi GPU training is experimental and NOT RECOMMENDED!**
-
-nnU-Net supports two different multi-GPU implementation: DataParallel (DP) and Distributed Data Parallel (DDP)
-(but currently only on one host!). DDP is faster than DP and should be preferred if possible. However, if you did not 
-install nnunet as a framework (meaning you used the `pip install nnunet` variant), DDP is not available. It requires a 
-different way of calling the correct python script (see below) which we cannot support from our terminal commands.
-
-Distributed training currently only works for the basic trainers (2D, 3D full resolution and 3D low resolution) and not 
-for the second, high resolution U-Net of the cascade. The reason for this is that distributed training requires some 
-changes to the network and loss function, requiring a new nnUNet trainer class. This is, as of now, simply not 
-implemented for the cascade, but may be added in the future.
-
-To run distributed training (DP), use the following command:
-
-```bash
-CUDA_VISIBLE_DEVICES=0,1,2... nnUNet_train_DP CONFIGURATION nnUNetTrainerV2_DP TASK_NAME_OR_ID FOLD -gpus GPUS --dbs
-```
-
-Note that nnUNetTrainerV2 was replaced with nnUNetTrainerV2_DP. Just like before, CONFIGURATION can be 2d, 3d_lowres or 
-3d_fullres. TASK_NAME_OR_ID refers to the task you would like to train and FOLD is the fold of the cross-validation. 
-GPUS (integer value) specifies the number of GPUs you wish to train on. To specify which GPUs you want to use, please make use of the 
-CUDA_VISIBLE_DEVICES envorinment variable to specify the GPU ids (specify as many as you configure with -gpus GPUS).
---dbs, if set, will distribute the batch size across GPUs. So if nnUNet configures a batch size of 2 and you run on 2 GPUs
-, each GPU will run with a batch size of 1. If you omit --dbs, each GPU will run with the full batch size (2 for each GPU 
-in this example for a total of batch size 4).
-
-To run the DDP training you must have nnU-Net installed as a framework. Your current working directory must be the 
-nnunet folder (the one that has the dataset_conversion, evaluation, experiment_planning, ... subfolders!). You can then run
-the DDP training with the following command:
-
-```bash
-CUDA_VISIBLE_DEVICES=0,1,2... python -m torch.distributed.launch --master_port=XXXX --nproc_per_node=Y run/run_training_DDP.py CONFIGURATION nnUNetTrainerV2_DDP TASK_NAME_OR_ID FOLD --dbs
-```
-
-XXXX must be an open port for process-process communication (something like 4321 will do on most systems). Y is the 
-number of GPUs you wish to use. Remember that we do not (yet) support distributed training across compute nodes. This 
-all happens on the same system. Again, you can use CUDA_VISIBLE_DEVICES=0,1,2 to control what GPUs are used.
-If you run more than one DDP training on the same system (say you have 4 GPUs and you run two training with 2 GPUs each) 
-you need to specify a different --master_port for each training!
-
-*IMPORTANT!*
-Multi-GPU training results in models that cannot be used for inference easily (as said above, all of this is experimental ;-) ).
-After finishing the training of all folds, run `nnUNet_change_trainer_class` on the folder where the trained model is 
-(see `nnUNet_change_trainer_class -h` for instructions). After that you can run inference.
-
-### Identifying the best U-Net configuration
-Once all models are trained, use the following 
-command to automatically determine what U-Net configuration(s) to use for test set prediction:
-
-```bash
-nnUNet_find_best_configuration -m 2d 3d_fullres 3d_lowres 3d_cascade_fullres -t XXX --strict
-```
-
-(all 5 folds need to be completed for all specified configurations!)
-
-On datasets for which the cascade was not configured, use `-m 2d 3d_fullres` instead. If you wish to only explore some 
-subset of the configurations, you can specify that with the `-m` command. We recommend setting the 
-`--strict` (crash if one of the requested configurations is 
-missing) flag. Additional options are available (use `-h` for help).
-
-### Run inference
-Remember that the data located in the input folder must adhere to the format specified 
-[here](documentation/data_format_inference.md). 
-
-`nnUNet_find_best_configuration` will print a string to the terminal with the inference commands you need to use. 
-The easiest way to run inference is to simply use these commands. 
-
-If you wish to manually specify the configuration(s) used for inference, use the following commands:
-
-For each of the desired configurations, run:
-```
-nnUNet_predict -i INPUT_FOLDER -o OUTPUT_FOLDER -t TASK_NAME_OR_ID -m CONFIGURATION --save_npz
-```
-
-Only specify `--save_npz` if you intend to use ensembling. `--save_npz` will make the command save the softmax 
-probabilities alongside of the predicted segmentation masks requiring a lot of disk space.
-
-Please select a separate `OUTPUT_FOLDER` for each configuration!
-
-If you wish to run ensembling, you can ensemble the predictions from several configurations with the following command:
-```bash
-nnUNet_ensemble -f FOLDER1 FOLDER2 ... -o OUTPUT_FOLDER -pp POSTPROCESSING_FILE
-```
-
-You can specify an arbitrary number of folders, but remember that each folder needs to contain npz files that were 
-generated by `nnUNet_predict`. For ensembling you can also specify a file that tells the command how to postprocess. 
-These files are created when running `nnUNet_find_best_configuration` and are located in the respective trained model 
-directory (RESULTS_FOLDER/nnUNet/CONFIGURATION/TaskXXX_MYTASK/TRAINER_CLASS_NAME__PLANS_FILE_IDENTIFIER/postprocessing.json or 
-RESULTS_FOLDER/nnUNet/ensembles/TaskXXX_MYTASK/ensemble_X__Y__Z--X__Y__Z/postprocessing.json). You can also choose to 
-not provide a file (simply omit -pp) and nnU-Net will not run postprocessing.
-
-Note that per default, inference will be done with all available folds. We very strongly recommend you use all 5 folds. 
-Thus, all 5 folds must have been trained prior to running inference. The list of available folds nnU-Net found will be 
-printed at the start of the inference.
-
-## How to run inference with pretrained models
-
-Trained models for all challenges we participated in are publicly available. They can be downloaded and installed 
-directly with nnU-Net. Note that downloading a pretrained model will overwrite other models that were trained with 
-exactly the same configuration (2d, 3d_fullres, ...), trainer (nnUNetTrainerV2) and plans.
-
-To obtain a list of available models, as well as a short description, run
-
-```bash
-nnUNet_print_available_pretrained_models
-```
-
-You can then download models by specifying their task name. For the Liver and Liver Tumor Segmentation Challenge, 
-for example, this would be:
-
-```bash
-nnUNet_download_pretrained_model Task029_LiTS
-```
-After downloading is complete, you can use this model to run [inference](#run-inference). Keep in mind that each of 
-these models has specific data requirements (Task029_LiTS runs on abdominal CT scans, others require several image 
-modalities as input in a specific order).
-
-When using the pretrained models you must adhere to the license of the dataset they are trained on! If you run 
-`nnUNet_download_pretrained_model` you will find a link where you can find the license for each dataset.
-
-## Examples
-
-To get you started we compiled two simple to follow examples:
-- run a training with the 3d full resolution U-Net on the Hippocampus dataset. See [here](documentation/training_example_Hippocampus.md).
-- run inference with nnU-Net's pretrained models on the Prostate dataset. See [here](documentation/inference_example_Prostate.md).
-
-Usability not good enough? Let us know!
-
-# Extending or Changing nnU-Net
-Please refer to [this](documentation/extending_nnunet.md) guide.
-
-# Information on run time and potential performance bottlenecks.
-
-We have compiled a list of expected epoch times on standardized datasets across many different GPUs. You can use them 
-to verify that your system is performing as expected. There are also tips on how to identify bottlenecks and what 
-to do about them.
-
-Click [here](documentation/expected_epoch_times.md).
-
-# Common questions and issues
-
-We have collected solutions to common [questions](documentation/common_questions.md) and 
-[problems](documentation/common_problems_and_solutions.md). Please consult these documents before you open a new issue.
